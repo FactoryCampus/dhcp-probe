@@ -4,6 +4,8 @@ const dhcpjs = require('dhcpjs');
 const util = require('util');
 const os = require('os');
 const ip = require('ip');
+const slack = require('slack-notify');
+require('dotenv').config({ silent: true });
 
 const client = new dhcpjs.Client();
 
@@ -38,10 +40,33 @@ const makePacket = function() {
     }
 }
 
-const stopSocket = function(ret) {
-    ret = ret || 0;
+const stopSocket = function() {
     client.client.close();
-    process.exit(ret);
+}
+
+const slack_webhook = process.env.SLACK_WEBHOOK_URL;
+const slack_channel = process.env.SLACK_CHANNEL;
+const slackSend = slack(slack_webhook);
+const fail = function(reason) {
+    console.error(reason);
+    slackSend.send({
+        channel: slack_channel,
+        text: "DHCP probe failed",
+        username: "Network Probe",
+        icon_emoji: ":warning:",
+        attachments: [{
+            color: "danger",
+            fields: [
+                { title: 'Reason', value: reason }
+            ]
+        }]
+    }, err => {
+        if(err) {
+            console.error(err);
+        }
+        stopSocket();
+        process.exit(1);
+    });
 }
 
 let timeout = null;
@@ -52,7 +77,7 @@ const sendRequest = function() {
     const request = client.createPacket(payload);
     client.broadcastPacket(request, undefined, function() {
         console.log(`dhcpRequest [${myInterface} | ${mac}]: sent`);
-        timeout = setTimeout(() => { console.log("Request timeout"); stopSocket(1); }, 5000);
+        timeout = setTimeout(() => fail("Request timeout"), 5000);
     });
 }
 
@@ -65,24 +90,24 @@ client.on('dhcpOffer', function(pkt) {
     }
 
     if(pkt.xid !== lastPacket.xid) {
-        console.log("Invalid xid:", pkt.xid);
-        return;
+        fail(`Invalid xid: ${pkt.xid}`);
     }
 
     if(pkt.chaddr.address !== mac) {
-        console.log("Invalid mac address:", pkt.chaddr.address);
+        fail(`Invalid mac address: ${pkt.chaddr.address}`);
         return;
     }
 
     const subnet = ip.subnet(pkt.yiaddr, pkt.options.subnetMask);
     if(subnet.networkAddress !== '10.3.0.0') {
-        console.log('Wrong/invalid ip address:', pkt.yiaddr);
+        fail(`Wrong/invalid ip address: ${pkt.yiaddr}`);
         return;
     }
 
     clearTimeout(timeout);
     console.log("SUCCESS: Got valid offer");
-    stopSocket(0);
+    stopSocket();
+    process.exit(0);
 });
 
 client.bind('0.0.0.0', 68, function() {

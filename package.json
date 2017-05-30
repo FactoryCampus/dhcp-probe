@@ -10,7 +10,9 @@
   "license": "ISC",
   "dependencies": {
     "dhcpjs": "^0.5.3",
+    "dotenv": "^4.0.0",
     "ip": "^1.1.5",
+    "slack-notify": "^0.1.6",
     "util": "^0.10.3"
   }
 }
