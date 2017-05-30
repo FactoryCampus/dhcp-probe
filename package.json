@@ -1,0 +1,17 @@
+{
+  "name": "dhcp-probe",
+  "version": "1.0.0",
+  "description": "",
+  "main": "example-client.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dhcpjs": "^0.5.3",
+    "ip": "^1.1.5",
+    "raw-socket": "^1.5.1",
+    "util": "^0.10.3"
+  }
+}
